@@ -1,0 +1,57 @@
+# This workflow runs automatically every time you push code to the main branch
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main  # Trigger only when code is pushed to main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # GitHub Actions runs this on a fresh Ubuntu machine
+    permissions:
+      contents: write  # Needed so the workflow can push deployment.yaml back to GitHub
+
+    steps:
+    # Step 1: Download your code onto the GitHub Actions machine
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Login to GCP using the service account key we stored as a secret
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.AKHILA_GCP_SA_KEY }}
+
+    # Step 3: Allow Docker to push images to GCP Artifact Registry
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+    # Step 4: Build the Docker image and tag it with the commit ID
+    - name: Build Docker image
+      run: |
+        docker build -t us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:${{ github.sha }} .
+        docker tag us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:${{ github.sha }} us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:latest
+
+    # Step 5: Push the Docker image to Artifact Registry
+    - name: Push Docker image
+      run: |
+        docker push us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:${{ github.sha }}
+        docker push us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:latest
+
+    # Step 6: Update the image tag in deployment.yaml with the new commit ID
+    # This is what triggers ArgoCD to deploy the new version
+    - name: Update deployment.yaml with new image tag
+      run: |
+        sed -i "s|image: us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:.*|image: us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:${{ github.sha }}|g" k8s/deployment.yaml
+
+    # Step 7: Commit and push the updated deployment.yaml back to GitHub
+    # ArgoCD watches this file - when it changes, ArgoCD deploys automatically
+    - name: Commit and push updated deployment.yaml
+      run: |
+        git config user.email "github-actions@github.com"
+        git config user.name "GitHub Actions"
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Vamsi-90/gke-learning.git
+        git add k8s/deployment.yaml
+        git commit -m "Update image tag to ${{ github.sha }}"
+        git push

@@ -1,0 +1,25 @@
+# A Service exposes your app to the outside world
+# Without this, your app runs inside Kubernetes but nobody can access it
+apiVersion: v1
+kind: Service
+
+metadata:
+  # Name of this service
+  name: gke-app
+
+spec:
+  # LoadBalancer tells GCP to create a PUBLIC IP address for your app
+  # This is how the internet reaches your app
+  type: LoadBalancer
+
+  selector:
+    # This service will send traffic to pods with label "app: gke-app"
+    # Must match the label in deployment.yaml
+    app: gke-app
+
+  ports:
+    # port 80 = the port the outside world uses (standard HTTP)
+    # targetPort 8080 = the port your Flask app is running on inside the pod
+    # So: internet hits port 80 → service forwards to port 8080 inside pod
+    - port: 80
+      targetPort: 8080

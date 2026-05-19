@@ -1,0 +1,53 @@
+# A Deployment tells Kubernetes HOW to run your app
+# It manages creating, updating, and restarting your app automatically
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  # This is the name of your deployment - used to identify it
+  name: gke-app
+
+spec:
+  # Run 2 copies (pods) of your app at all times
+  # If 1 crashes, the other keeps serving traffic - no downtime!
+  replicas: 2
+
+  selector:
+    matchLabels:
+      # This deployment will manage any pod that has label "app: gke-app"
+      app: gke-app
+
+  # This is the TEMPLATE for each pod (copy) that gets created
+  template:
+    metadata:
+      labels:
+        # Every pod created gets this label - like a name tag
+        app: gke-app
+
+    spec:
+      containers:
+        # The container running inside each pod
+        - name: gke-app
+
+          # The Docker image to pull and run
+          # GitHub Actions will automatically update this line with the new image tag on every push
+          image: us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:latest
+
+          ports:
+            # The port your Flask app listens on inside the container
+            - containerPort: 8080
+
+          # readinessProbe - Kubernetes checks this before sending any traffic to the pod
+          # It hits /health on port 8080 - if it returns OK, the pod is ready
+          # If not ready yet, Kubernetes waits and does NOT send traffic to it
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+
+          # livenessProbe - Kubernetes keeps checking this while the pod is running
+          # If /health stops responding, Kubernetes automatically RESTARTS the pod
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
