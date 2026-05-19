@@ -31,7 +31,7 @@ spec:
 
           # The Docker image to pull and run
           # GitHub Actions will automatically update this line with the new image tag on every push
-          image: us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:latest
+          image: us-central1-docker.pkg.dev/handson-claims-2026/gke-repo2/gke-app:304a3206ff8eec11a07cb3b988e3e995b7abe321
 
           ports:
             # The port your Flask app listens on inside the container
